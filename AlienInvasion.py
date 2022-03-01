@@ -8,6 +8,7 @@ from bullet import Bullet
 from alien import Alien
 from game_stats import GameStats
 from button import Button
+from scoreboard import Scoreboard
 
 # overall class to manage game assets and behavior
 class AlienInvasion:
@@ -21,8 +22,9 @@ class AlienInvasion:
 
         pygame.display.set_caption("Alien Invasion")
 
-        # create an instance to store game stats
+        # create an instance to store game stats & scoreboard
         self.stats = GameStats(self)
+        self.sb = Scoreboard(self)
 
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
@@ -61,10 +63,19 @@ class AlienInvasion:
     # if so, get rid of bullet and alien
     def _check_bullet_alien_collisions(self):
         collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, True, True)
+
+        # add points to score for collisions
+        if collisions:
+            for aliens in collisions.values():
+                self.stats.score += self.settings.alien_points * len(aliens)
+            self.sb.prep_score()
+            self.sb.check_high_score()
+
         # destroy exsisting bullets and create new fleet
         if not self.aliens:
             self.bullets.empty()
             self._create_fleet()
+            self.settings.increase_speed()
 
     # create a fleet of aliens
     def _create_fleet(self):
@@ -158,11 +169,15 @@ class AlienInvasion:
         # deactivate play button when disappeared
         button_clicked = self.play_button.rect.collidepoint(mouse_pos)
         if button_clicked and not self.stats.game_active:
+            # reset game settings
+            self.settings.initialize_dynamic_settings()
+
             # reset game stats
             self.stats.reset_stats()
 
             # change status to active
             self.stats.game_active = True
+            self.sb.prep_score()
 
             # get rid of remaining aliens and bullets
             self.aliens.empty()
@@ -189,6 +204,9 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+
+        # draw the score info
+        self.sb.show_score()
 
         # draw play button on screen if game inactive
         if not self.stats.game_active:
